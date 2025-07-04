@@ -76,10 +76,10 @@ WSGI_APPLICATION = 'automate.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'automate',
-        'USER': 'postgres',
-        'PASSWORD': 'Sinemavi33@',
-        'HOST': 'localhost',
+        'NAME': 'automatondb',
+        'USER': 'siewenel',
+        'PASSWORD': 'x1qsPE95MfUQLc92w9pBfW4AOVVmx3cq',
+        'HOST': 'dpg-d1jjji6mcj7s739u824g-a',
         'PORT': '5432',
     }
 }
