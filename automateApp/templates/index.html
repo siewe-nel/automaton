@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutomateLab</title>
+    <script src="https://unpkg.com/cytoscape@3.24.0/dist/cytoscape.min.js"></script>
+    <style>
+        /* Styles inchangés - identiques à votre version originale */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #333; line-height: 1.6; min-height: 100vh; }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .canvas-wrapper {
+    border: 1px solid #ccc;
+    max-width: 100%;
+    max-height: 500px;
+}
+        .equation-solver {
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fdfdfd;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-family: 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+        .equation-solver h2 {
+        text-align: center;
+        margin-bottom: 15px;
+        color: #333;
+        }
+
+        .equation-solver textarea {
+        width: 100%;
+        height: 160px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        resize: vertical;
+        box-sizing: border-box;
+        }
+
+        .equation-solver button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: #007BFF;
+        border: none;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        display: block;
+        margin-left: auto;
+        }
+
+        .equation-solver button:hover {
+        background-color: #0056b3;
+        }
+
+        .equation-result {
+        margin-top: 20px;
+        background: #f8f9fa;
+        padding: 15px;
+        border-left: 5px solid #007BFF;
+        border-radius: 6px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        }
+
+        .equation-result.error {
+        border-color: #dc3545;
+        background: #fff1f1;
+        color: #c00;
+        }
+        .canvas-wrapper::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        .canvas-wrapper::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        .canvas-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .lang-result {
+        background-color: #f4f8fb;
+        border-left: 5px solid #3498db;
+        padding: 16px 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 15px;
+        color: #2c3e50;
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        }
+
+        /* Flou arrière-plan */
+        .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        backdrop-filter: blur(6px);
+        background-color: rgba(0, 0, 0, 0.3);
+        display: none;
+        z-index: 9;
+        }
+       
+        /* Fenêtre centrale */
+        .table-result {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        padding: 20px 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        z-index: 10;
+         max-height: 50vh; /* limite à la moitié de l’écran */
+  overflow-y: auto;  /* active le scroll vertical si nécessaire */
+        display: none;
+        min-width: 300px;
+        max-width: 90%;
+        }
+
+        /* Bouton de fermeture (croix) */
+        .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 22px;
+        cursor: pointer;
+        color: #444;
+        font-weight: bold;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: scroll;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 0.5rem 0;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        nav a:hover, nav a.active {
+            background-color: #3498db;
+        }
+        main {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1.5rem;
+        }
+        section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        h2 {
+            color: #34495e;
+            margin: 1rem 0 0.8rem;
+            font-size: 1.4rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: #f8f9fa;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        textarea {
+            resize: vertical;
+            height: 120px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+        .btn-warning {
+            background-color: #f39c12;
+        }
+        .btn-warning:hover {
+            background-color: #d35400;
+        }
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            min-height: 50px;
+        }
+        #automaton-canvas {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 1rem;
+            background-color: #f8f9fa;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+            padding: 0;
+        }
+        .close-btn:hover {
+            color: #e74c3c;
+            transform: none;
+            box-shadow: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.8rem;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .state-badge {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.3rem;
+        }
+        .state-initial {
+            background-color: #d5f5e3;
+            color: #27ae60;
+        }
+        .state-final {
+            background-color: #fadbd8;
+            color: #c0392b;
+        }
+        .operations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .operation-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.2rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+        .operation-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+            border-color: #3498db;
+        }
+        .operation-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.8rem;
+            color: #3498db;
+        }
+        .state-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        .state-item {
+            padding: 0.8rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .state-item:last-child {
+            border-bottom: none;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .restrict{
+            max-width: 800px;
+        }
+        .canvas-container {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            background-color: #f8f9fa;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin: 1rem 0;
+        }
+        .tab {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+        .tab.active {
+            border-bottom: 3px solid #3498db;
+            color: #2c3e50;
+        }
+        .tab-content {
+            display: none;
+            padding: 1rem 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .alert-success {
+            background-color: #d5f5e3;
+            color: #27ae60;
+            border-left: 4px solid #27ae60;
+        }
+        .alert-error {
+            background-color: #fadbd8;
+            color: #c0392b;
+            border-left: 4px solid #c0392b;
+        }
+        .alert-icon {
+            font-size: 1.5rem;
+        }
+    
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            max-width: 350px;
+        }
+        .notification {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(120%);
+            animation: slideIn 0.3s forwards, fadeOut 0.3s 2.5s forwards;
+        }
+        .notification-success { background-color: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .notification-error { background-color: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .notification-info { background-color: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .notification-icon { font-size: 1.8rem; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; } }
+        .state-circle { position: absolute; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+        .state-initial { background-color: #d4edda; border: 2px solid #28a745; }
+        .state-final { background-color: #f8d7da; border: 2px solid #dc3545; }
+        .state-normal { background-color: #d1e7fd; border: 2px solid #0d6efd; }
+        .transition-arrow { position: absolute; stroke: #333; stroke-width: 2; }
+        .transition-label { position: absolute; background-color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="notification-container"></div>
+    
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#automata" class="active">Automates</a></li>
+                <li><a href="#expressions">Expressions</a></li>
+                <li><a href="#operations">Opérations</a></li>
+                <li><a href="#tests">Tests</a></li>
+                <li><a href="#systemes">Systèmes d'équations</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="sidebar">
+            <!-- Section Automates -->
+            <section id="automata">
+                <h1>Gestion des Automates</h1>
+                <div class="form-group">
+                    <button id="create-automaton-btn" class="btn">+ Créer</button>
+                </div>
+                <div class="form-group">
+                    <label for="automaton-select">Automates existants :</label>
+                    <select id="automaton-select">
+                        <option value="">-- sélectionner --</option>
+                    </select>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button id="edit-automaton-btn" class="btn btn-warning" style="display:none;">✏️ Modifier</button>
+                        <button id="delete-automaton-btn" class="btn btn-danger" style="display:none;">🗑️ Supprimer</button>
+                    </div>
+                </div>
+                <div id="automaton-details" class="result" style="display:none;">
+                    <h2>Détails</h2>
+                    <p><strong>Nom:</strong> <span id="detail-name"></span></p>
+                    <p><strong>Type:</strong> <span id="detail-type"></span></p>
+                    <p><strong>Alphabet:</strong> <span id="detail-alphabet"></span></p>
+                </div>
+            </section>
+
+            <!-- Section États -->
+            <section>
+                <h2>États</h2>
+                <div id="state-list-container" class="result">
+                    <ul id="state-list" class="state-list"></ul>
+                </div>
+            </section>
+        </div>
+
+        <div class="main-content">
+            <!-- Visualisation de l'automate -->
+            <section class="restrict">
+                <h1>Visualisation de l'Automate</h1>
+                <div class="canvas-container" id="automaton-container">
+                    <canvas id="automaton-canvas"></canvas>
+                </div>
+            </section>
+
+            <!-- Section Opérations -->
+            <section id="operations">
+                <h1>Opérations sur l'Automate</h1>
+                <div class="operations-grid">
+                    <div class="operation-card" data-operation="determinize">
+                        <div class="operation-icon">🔀</div>
+                        <h3>Déterminisation</h3>
+                        <p>Convertir AFN en AFD</p>
+                    </div>
+                    <div class="operation-card" data-operation="minimize">
+                        <div class="operation-icon">➖</div>
+                        <h3>Minimisation</h3>
+                        <p>Réduire la taille de l'automate</p>
+                    </div>
+                    <div class="operation-card" data-operation="complete">
+                        <div class="operation-icon">✓</div>
+                        <h3>Complétion</h3>
+                        <p>Rendre l'automate complet</p>
+                    </div>
+                    <div class="operation-card" data-operation="complement">
+                        <div class="operation-icon">⊕</div>
+                        <h3>Complémentation</h3>
+                        <p>Inverser l'automate</p>
+                    </div>
+                    <div  class="operation-card" data-operation="langage">
+                        <div class="operation-icon">📝</div>
+                        <h3>Langage Reconnu</h3>
+                        <p>Obtenir le langage reconnu</p>
+                        <div id="lang-result" class="lang-result"></div>
+
+                    </div>
+                    <div class="operation-card" data-operation="table" onclick="openTable()">
+                        <div class="operation-icon">📊</div>
+                        <h3>Table de Transition</h3>
+                        <p>Afficher le tableau</p>
+                       
+                    </div>
+                </div>
+            </section>
+             <!-- Fond flou -->
+                        <div class="overlay" id="overlay" onclick="handleOverlayClick(event)"></div>
+
+                        <!-- Contenu de la table -->
+                        <div class="table-result" id="table-result">
+                        <button class="close-btn" onclick="closeTable()">×</button>
+                        <h3>Résultat</h3>
+                        <p>Voici le contenu de votre résultat ou de votre tableau.</p>
+                        </div>
+
+            <!-- Section Expressions Régulières -->
+            <section id="expressions">
+                <h1>Expressions Régulières</h1>
+                <div class="form-group">
+                    <label for="regex-input">Expression régulière :</label>
+                    <input type="text" id="regex-input" placeholder="a*b+c">
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select id="regex-method" style="flex: 1;">
+                        <option value="thompson">Méthode de Thompson</option>
+                        <option value="glushkov">Méthode de Glushkov</option>
+                    </select>
+                    <button id="build-from-regex" class="btn">🔧 Construire</button>
+                </div>
+                <div id="regex-result" class="result" style="min-height: 80px; margin-top: 1rem;"></div>
+            </section>
+
+            <!-- Section Tests -->
+            <section id="tests">
+                <h1>Tests & Propriétés</h1>
+                <div class="tabs">
+                    <div class="tab active" data-tab="test">Tester un Mot</div>
+                    <div class="tab" data-tab="properties">Propriétés</div>
+                    <div class="tab" data-tab="epsilon">ε-Fermeture</div>
+                </div>
+                
+                <div class="tab-content active" id="test-content">
+                    <div class="form-group">
+                        <label for="test-word">Mot à tester :</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="test-word" placeholder="Entrez un mot" style="flex: 1;">
+                            <button id="test-word-btn" class="btn btn-success">▶️ Tester</button>
+                        </div>
+                    </div>
+                    <div id="test-word-result" class="result"></div>
+                </div>
+                
+                <div class="tab-content" id="properties-content">
+                    <div class="form-group">
+                        <label for="prop-state-id">État à vérifier :</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="prop-state-select" style="flex: 1;"></select>
+                            <button id="check-props" class="btn">Vérifier</button>
+                        </div>
+                    </div>
+                    <div id="props-result" class="result"></div>
+                </div>
+                
+                <div class="tab-content" id="epsilon-content">
+                    <div class="form-group">
+                        <label for="eps-state-id">État pour ε-fermeture :</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="eps-state-select" style="flex: 1;"></select>
+                            <button id="compute-eps" class="btn">Calculer</button>
+                        </div>
+                    </div>
+                    <div id="eps-result" class="result"></div>
+                </div>
+            </section>
+
+            <!-- section systemes d'equations -->
+             <section id="systemes">
+                <div class="equation-solver">
+  <h2>Résolution d’un système d’équations (Lemme d’Arden)</h2>
+  <label for="equation-input">Saisissez votre système :</label>
+  <textarea id="equation-input" placeholder="Exemple :&#10;X0 = bX0 + aX1&#10;X1 = aX2 + bX3&#10;X2 = bX2 + a&#10;X3 = aX3 + b"></textarea>
+  <button onclick="solveEquations()">Résoudre</button>
+  <div id="equation-result" class="equation-result"></div>
+</div>
+             </section>
+        </div>
+
+        <!-- Modal pour Créer/Modifier Automate -->
+        <div id="automaton-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Créer un Automate</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="form-group">
+                    <label for="modal-name">Nom :</label>
+                    <input type="text" id="modal-name">
+                </div>
+                <div class="form-group">
+                    <label for="modal-type">Type :</label>
+                    <select id="modal-type">
+                        <option value="AFD">AFD</option>
+                        <option value="AFN">AFN</option>
+                        <option value="e-AFN">e-AFN</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modal-alphabet">Alphabet (séparé par des virgules) :</label>
+                    <input type="text" id="modal-alphabet" placeholder="a,b,c">
+                </div>
+                <div class="form-group">
+                    <label for="modal-states">États (séparé par des virgules) :</label>
+                    <input type="text" id="modal-states" placeholder="q0,q1,q2">
+                </div>
+                <div class="form-group">
+                    <label for="modal-initial">État Initial :</label>
+                    <input type="text" id="modal-initial" placeholder="q0">
+                </div>
+                <div class="form-group">
+                    <label for="modal-finals">États Finaux (séparé par des virgules) :</label>
+                    <input type="text" id="modal-finals" placeholder="q1,q2">
+                </div>
+                <div class="form-group">
+                    <label for="modal-transitions">Transitions (format : source,symbole,destination;...) :</label>
+                    <textarea id="modal-transitions" placeholder="q0,a,q1;q1,b,q2"></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <button id="modal-save" class="btn">Valider</button>
+                    <button id="modal-cancel" class="btn btn-danger">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentAutomatonId = null;
+        let currentAutomatonData = null;
+        let automataList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAutomata();
+            setupEventListeners();
+        });
+
+        function showNotification(message, type = 'info') {
+            const container = document.querySelector('.notification-container');
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✅'; break;
+                case 'error': icon = '❌'; break;
+                default: icon = 'ℹ️';
+            }
+            
+            notification.innerHTML = `
+                <div class="notification-icon">${icon}</div>
+                <div>${message}</div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Supprimer la notification après 3 secondes
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function fetchAutomata() {
+            fetch('/automates/')
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur réseau');
+                    return response.json();
+                })
+                .then(data => {
+                    automataList = data;
+                    populateSelects(data);
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des automates:', error);
+                    showNotification('Erreur lors du chargement des automates', 'error');
+                });
+        }
+
+        function populateSelects(automata) {
+            // Mise à jour du sélecteur principal
+            const automatonSelect = document.getElementById('automaton-select');
+            automatonSelect.innerHTML = '<option value="">-- sélectionner --</option>';
+            
+            automata.forEach(a => {
+                const option = document.createElement('option');
+                option.value = a.id;
+                option.textContent = `${a.nom} (${a.type})`;
+                automatonSelect.appendChild(option);
+            });
+        }
+
+        function updateAutomatonList() {
+            const select = document.getElementById('automaton-select');
+            select.addEventListener('change', () => {
+                const id = select.value;
+                if (id) {
+                    currentAutomatonId = id;
+                    fetchAutomatonDetails(id);
+                    document.getElementById('edit-automaton-btn').style.display = 'inline-block';
+                    document.getElementById('delete-automaton-btn').style.display = 'inline-block';
+                } else {
+                    document.getElementById('automaton-details').style.display = 'none';
+                    document.getElementById('edit-automaton-btn').style.display = 'none';
+                    document.getElementById('delete-automaton-btn').style.display = 'none';
+                    const canvas = document.getElementById('automaton-canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            });
+        }
+
+        function fetchAutomatonDetails(id) {
+            fetch(`/automates/${id}/`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur réseau');
+                    return response.json();
+                })
+                .then(data => {
+                    currentAutomatonData = data;
+                    document.getElementById('automaton-details').style.display = 'block';
+                    document.getElementById('detail-name').textContent = data.nom;
+                    document.getElementById('detail-type').textContent = data.type;
+                    
+                    // Gestion de l'alphabet
+                    let alphabetDisplay = '';
+                    if (Array.isArray(data.alphabet)) {
+                        alphabetDisplay = data.alphabet.join(', ');
+                    } else if (typeof data.alphabet === 'string') {
+                        alphabetDisplay = data.alphabet;
+                    } else {
+                        alphabetDisplay = 'Non défini';
+                    }
+                    document.getElementById('detail-alphabet').textContent = alphabetDisplay;
+                    
+                    // Mise à jour de la liste des états
+                    updateStateList(data);
+                    
+                    // Dessin de l'automate
+                    drawAutomaton(data);
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la récupération des détails:', error);
+                    showNotification('Erreur lors du chargement des détails', 'error');
+                });
+        }
+
+        function updateStateList(data) {
+            const stateList = document.getElementById('state-list');
+            stateList.innerHTML = '';
+            
+            // Mise à jour des sélecteurs d'états
+            const stateSelects = ['prop-state-select', 'eps-state-select'];
+            stateSelects.forEach(id => {
+                const select = document.getElementById(id);
+                select.innerHTML = '<option value="">-- sélectionner --</option>';
+            });
+            
+            if (!data.etats || !Array.isArray(data.etats)) {
+                showNotification('Aucun état trouvé pour cet automate', 'info');
+                return;
+            }
+            
+            data.etats.forEach(state => {
+                // Ajout à la liste des états
+                const li = document.createElement('li');
+                li.className = 'state-item';
+                
+                const stateInfo = document.createElement('div');
+                stateInfo.innerHTML = `
+                    <strong>${state.nom}</strong>
+                    ${state.id === data.etat_initial_id ? '<span class="state-badge state-initial">Initial</span>' : ''}
+                    ${state.est_final ? '<span class="state-badge state-final">Final</span>' : ''}
+                `;
+                
+                li.appendChild(stateInfo);
+                stateList.appendChild(li);
+                
+                // Ajout aux sélecteurs d'états
+                stateSelects.forEach(id => {
+                    const select = document.getElementById(id);
+                    const option = document.createElement('option');
+                    option.value = state.id;
+                    option.textContent = state.nom;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        
+    
+
+   // Fonction principale pour dessiner un automate
+      function drawAutomaton(data) {
+    const containerId = 'automaton-container';
+    const container = document.getElementById(containerId);
+
+    container.innerHTML = `
+        <div class="automaton-title">${data.nom}</div>
+        <div class="automaton-subtitle">Type: ${data.type} | Alphabet: {${data.alphabet}}</div>
+        <div class="canvas-wrapper" style="overflow: auto; max-width: 100%; max-height: 500px; border: 1px solid #ccc; display: flex; justify-content: center; align-items: center;">
+            <canvas id="canvas-${data.id}" width="800" height="400"></canvas>
+        </div>
+    `;
+
+    const canvas = document.getElementById(`canvas-${data.id}`);
+    const ctx = canvas.getContext('2d');
+    const stateRadius = 35;
+
+    const colors = {
+        initial: '#4CAF50',
+        final: '#FF9800',
+        normal: '#2196F3',
+        text: '#333',
+        transition: '#666',
+        arrow: '#444'
+    };
+
+    let positions = calculateStatePositions(data.etats, canvas.width, canvas.height);
+    const transitionGroups = groupAndIndexTransitions(data.transitions);
+
+    let draggingStateId = null;
+
+    canvas.addEventListener('mousedown', (e) => {
+        const { x, y } = getMousePosition(e, canvas);
+        for (const state of data.etats) {
+            const pos = positions[state.id];
+            const dx = x - pos.x;
+            const dy = y - pos.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= stateRadius) {
+                draggingStateId = state.id;
+                break;
+            }
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (draggingStateId !== null) {
+            const { x, y } = getMousePosition(e, canvas);
+            positions[draggingStateId] = { x, y };
+            redraw();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        draggingStateId = null;
+    });
+
+    function getMousePosition(evt, canvas) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+        };
+    }
+
+    function calculateStatePositions(etats, canvasWidth, canvasHeight) {
+        const pos = {};
+        const n = etats.length;
+        const cx = canvasWidth / 2;
+        const cy = canvasHeight / 2;
+
+        if (n === 1) {
+            pos[etats[0].id] = { x: cx, y: cy };
+        } else {
+            const radius = Math.min(canvasWidth, canvasHeight) / 2 - stateRadius - 10;
+            etats.forEach((state, i) => {
+                const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+                pos[state.id] = {
+                    x: cx + radius * Math.cos(angle),
+                    y: cy + radius * Math.sin(angle)
+                };
+            });
+        }
+        return pos;
+    }
+
+    function groupAndIndexTransitions(transitions) {
+        const grouped = {};
+        transitions.forEach(t => {
+            const key = `${t.source_id}-${t.destination_id}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(t);
+        });
+
+        for (const key in grouped) {
+            grouped[key].forEach((t, index) => {
+                t._index = index;
+                t._count = grouped[key].length;
+            });
+        }
+
+        return grouped;
+    }
+
+    function drawArrow(fromX, fromY, toX, toY, label, curvature = 0) {
+        const dx = toX - fromX;
+        const dy = toY - fromY;
+        const angle = Math.atan2(dy, dx);
+
+        const startX = fromX + Math.cos(angle) * stateRadius;
+        const startY = fromY + Math.sin(angle) * stateRadius;
+        const endX = toX - Math.cos(angle) * stateRadius;
+        const endY = toY - Math.sin(angle) * stateRadius;
+
+        ctx.beginPath();
+
+        if (curvature === 0) {
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+        } else {
+            const midX = (startX + endX) / 2 + curvature * Math.cos(angle + Math.PI / 2);
+            const midY = (startY + endY) / 2 + curvature * Math.sin(angle + Math.PI / 2);
+            ctx.moveTo(startX, startY);
+            ctx.quadraticCurveTo(midX, midY, endX, endY);
+        }
+
+        ctx.strokeStyle = colors.transition;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const headlen = 10;
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(midX - 15, midY - 20, 30, 16);
+        ctx.fillStyle = colors.text;
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, midX, midY - 8);
+    }
+
+    function drawSelfLoop(x, y, label) {
+        const loopRadius = 25;
+        const offset = 10;
+        const loopCenterX = x;
+        const loopCenterY = y - stateRadius - loopRadius - offset;
+
+        ctx.beginPath();
+        ctx.arc(loopCenterX, loopCenterY, loopRadius, 0.7 * Math.PI, 2.3 * Math.PI);
+        ctx.strokeStyle = colors.transition;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const endX = loopCenterX + loopRadius * Math.cos(2.3 * Math.PI);
+        const endY = loopCenterY + loopRadius * Math.sin(2.3 * Math.PI);
+
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 8 * Math.cos(Math.PI / 4), endY - 8 * Math.sin(Math.PI / 4));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 8 * Math.cos(Math.PI * 3 / 4), endY - 8 * Math.sin(Math.PI * 3 / 4));
+        ctx.stroke();
+
+        const labelX = loopCenterX;
+        const labelY = loopCenterY - loopRadius - 15;
+
+        ctx.fillStyle = 'white';
+        const labelWidth = ctx.measureText(label).width + 10;
+        ctx.fillRect(labelX - labelWidth / 2, labelY - 10, labelWidth, 20);
+        ctx.strokeStyle = '#ccc';
+        ctx.strokeRect(labelX - labelWidth / 2, labelY - 10, labelWidth, 20);
+
+        ctx.fillStyle = colors.text;
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, labelX, labelY + 4);
+    }
+
+    function drawState(state, x, y) {
+        const isInitial = state.id === data.etat_initial_id;
+        const isFinal = state.est_final;
+
+        let color = colors.normal;
+        if (isInitial && isFinal) {
+            const gradient = ctx.createLinearGradient(x - 30, y - 30, x + 30, y + 30);
+            gradient.addColorStop(0, colors.initial);
+            gradient.addColorStop(1, colors.final);
+            color = gradient;
+        } else if (isInitial) color = colors.initial;
+        else if (isFinal) color = colors.final;
+
+        ctx.beginPath();
+        ctx.arc(x, y, stateRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        if (isFinal) {
+            ctx.beginPath();
+            ctx.arc(x, y, stateRadius - 6, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        if (isInitial) {
+            ctx.beginPath();
+            ctx.moveTo(x - stateRadius - 25, y);
+            ctx.lineTo(x - stateRadius, y);
+            ctx.strokeStyle = colors.arrow;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x - stateRadius, y);
+            ctx.lineTo(x - stateRadius - 8, y - 6);
+            ctx.moveTo(x - stateRadius, y);
+            ctx.lineTo(x - stateRadius - 8, y + 6);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(state.nom, x, y);
+    }
+
+    function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        data.transitions.forEach(t => {
+            const from = positions[t.source_id];
+            const to = positions[t.destination_id];
+            const label = t.symbole;
+
+            if (t.source_id === t.destination_id) {
+                drawSelfLoop(from.x, from.y, label);
+            } else {
+                const total = t._count;
+                const index = t._index;
+                const spacing = 15;
+                let curvature = 0;
+
+                if (total > 1) {
+                    const mid = Math.floor(total / 2);
+                    const direction = (index % 2 === 0) ? 1 : -1;
+                    curvature = direction * spacing * Math.ceil((index + 1) / 2);
+                }
+
+                drawArrow(from.x, from.y, to.x, to.y, label, curvature);
+            }
+        });
+
+        data.etats.forEach(state => {
+            const { x, y } = positions[state.id];
+            drawState(state, x, y);
+        });
+    }
+    window.automatonRenderer = {
+    resetColors: () => {
+        redraw(); // Redessine tout proprement
+    },
+    highlightElements: ({ states, transitions }) => {
+        states.forEach(id => {
+            if (positionsByName[id]) {
+                const pos = positionsByName[id];
+                highlightState(id, pos.x, pos.y, '#f44336'); // rouge
+            }
+        });
+
+        transitions.forEach(key => {
+            const [from, rest] = key.split('->');
+            const [to, symbol] = rest.split(':');
+            highlightTransition(from, to, symbol, '#f44336');
+        });
+    }
+};
+
+    redraw();
+}
+
+
+
+         // Fonction pour calculer automatiquement les positions des états
+        function calculateStatePositions(etats, canvasWidth, canvasHeight) {
+            const positions = {};
+            const numStates = etats.length;
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            
+            if (numStates === 1) {
+                positions[etats[0].id] = { x: centerX, y: centerY };
+            } else if (numStates === 2) {
+                positions[etats[0].id] = { x: centerX - 150, y: centerY };
+                positions[etats[1].id] = { x: centerX + 150, y: centerY };
+            } else {
+                // Disposition circulaire
+                const radius = Math.min(canvasWidth, canvasHeight) * 0.3;
+                etats.forEach((state, index) => {
+                    const angle = (2 * Math.PI * index) / numStates - Math.PI / 2;
+                    positions[state.id] = {
+                        x: centerX + radius * Math.cos(angle),
+                        y: centerY + radius * Math.sin(angle)
+                    };
+                });
+            }
+            
+            return positions;
+        }
+
+        function setupEventListeners() {
+            // Gestion des onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Retirer la classe active de tous les onglets et contenus
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    // Ajouter la classe active à l'onglet cliqué
+                    tab.classList.add('active');
+                    
+                    // Afficher le contenu correspondant
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-content`).classList.add('active');
+                });
+            });
+            
+            // Modal
+            const modal = document.getElementById('automaton-modal');
+            document.getElementById('create-automaton-btn').addEventListener('click', () => {
+                document.getElementsByClassName('modal-title')[0].textContent = 'Créer un Automate';
+                document.getElementById('modal-name').value = '';
+                document.getElementById('modal-type').value = 'AFD';
+                document.getElementById('modal-alphabet').value = '';
+                document.getElementById('modal-states').value = '';
+                document.getElementById('modal-initial').value = '';
+                document.getElementById('modal-finals').value = '';
+                document.getElementById('modal-transitions').value = '';
+                modal.style.display = 'flex';
+            });
+            
+            document.querySelectorAll('.close-btn, #modal-cancel').forEach(btn => {
+                btn.addEventListener('click', () => modal.style.display = 'none');
+            });
+            
+            // Enregistrement de l'automate
+            document.getElementById('modal-save').addEventListener('click', saveAutomaton);
+            
+            // Suppression de l'automate
+            document.getElementById('delete-automaton-btn').addEventListener('click', () => {
+                if (currentAutomatonId) {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer cet automate ?')) {
+                        fetch(`/automates/${currentAutomatonId}/`, { method: 'DELETE' })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Erreur de suppression');
+                                return response.json();
+                            })
+                            .then(() => {
+                                fetchAutomata();
+                                document.getElementById('automaton-details').style.display = 'none';
+                                document.getElementById('edit-automaton-btn').style.display = 'none';
+                                document.getElementById('delete-automaton-btn').style.display = 'none';
+                                const canvas = document.getElementById('automaton-canvas');
+                                const ctx = canvas.getContext('2d');
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                showNotification('Automate supprimé avec succès', 'success');
+                            })
+                            .catch(error => {
+                                console.error('Erreur lors de la suppression:', error);
+                                showNotification('Erreur lors de la suppression', 'error');
+                            });
+                    }
+                }
+            });
+            
+            // Modification de l'automate
+            document.getElementById('edit-automaton-btn').addEventListener('click', () => {
+                if (currentAutomatonData) {
+                    document.getElementsByClassName('modal-title')[0].textContent = 'Modifier un Automate';
+                    document.getElementById('modal-name').value = currentAutomatonData.nom;
+                    document.getElementById('modal-type').value = currentAutomatonData.type;
+                    
+                    // Correction de l'alphabet
+                    let alphabetValue = '';
+                    if (Array.isArray(currentAutomatonData.alphabet)) {
+                        alphabetValue = currentAutomatonData.alphabet.join(', ');
+                    } else if (typeof currentAutomatonData.alphabet === 'string') {
+                        alphabetValue = currentAutomatonData.alphabet;
+                    }
+                    document.getElementById('modal-alphabet').value = alphabetValue;
+                    
+                    document.getElementById('modal-states').value = 
+                        currentAutomatonData.etats.map(e => e.nom).join(',');
+                    
+                    document.getElementById('modal-initial').value = 
+                        currentAutomatonData.etats.find(e => e.id === currentAutomatonData.etat_initial_id).nom;
+                    
+                    document.getElementById('modal-finals').value = 
+                        currentAutomatonData.etats.filter(e => e.est_final).map(e => e.nom).join(',');
+                    
+                    document.getElementById('modal-transitions').value = 
+                        currentAutomatonData.transitions.map(t => {
+                            const source = currentAutomatonData.etats.find(e => e.id === t.source_id)?.nom || '';
+                            const dest = currentAutomatonData.etats.find(e => e.id === t.destination_id)?.nom || '';
+                            return `${source},${t.symbole},${dest}`;
+                        }).join(';');
+                    
+                    modal.style.display = 'flex';
+                }
+            });
+            
+            // Opérations sur l'automate
+            document.querySelectorAll('.operation-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const operation = card.getAttribute('data-operation');
+                    handleAutomatonOperation(operation);
+                });
+            });
+            
+            // Tests et propriétés
+            document.getElementById('test-word-btn').addEventListener('click', testWord);
+            document.getElementById('check-props').addEventListener('click', checkProperties);
+            document.getElementById('compute-eps').addEventListener('click', computeEpsilon);
+            document.getElementById('build-from-regex').addEventListener('click', buildFromRegex);
+            
+            // Redessiner l'automate lors du redimensionnement
+            window.addEventListener('resize', () => {
+                if (currentAutomatonData) {
+                    drawAutomaton(currentAutomatonData);
+                }
+            });
+            
+            // Initialisation de la liste d'automates
+            updateAutomatonList();
+        }
+
+        function saveAutomaton() {
+            const stateNames = document.getElementById('modal-states').value.split(',').map(s => s.trim());
+            const finalStateNames = document.getElementById('modal-finals').value.split(',').map(s => s.trim());
+            const initialStateName = document.getElementById('modal-initial').value.trim();
+            
+            // Créer les états avec leurs IDs basés sur leurs noms
+            const etats = stateNames.map(name => ({
+                nom: name,
+                est_final: finalStateNames.includes(name)
+            }));
+            
+            // Trouver l'ID de l'état initial
+            const etatInitial = etats.find(e => e.nom === initialStateName);
+            if (!etatInitial) {
+                showNotification('État initial non trouvé dans la liste des états', 'error');
+                return;
+            }
+            
+            // Parser les transitions
+            const transitionsInput = document.getElementById('modal-transitions').value;
+            const transitions = [];
+            
+            if (transitionsInput.trim() !== '') {
+                transitionsInput.split(';').forEach(transitionStr => {
+                    const parts = transitionStr.split(',').map(s => s.trim());
+                    if (parts.length === 3) {
+                        transitions.push({
+                            source: parts[0],
+                            symbole: parts[1],
+                            destination: parts[2]
+                        });
+                    }
+                });
+            }
+            
+            const data = {
+                nom: document.getElementById('modal-name').value,
+                type: document.getElementById('modal-type').value,
+                alphabet: document.getElementById('modal-alphabet').value.split(',').map(s => s.trim()),
+                etats: etats,
+                etat_initial: initialStateName,
+                transitions: transitions
+            };
+            
+            const url = currentAutomatonId ? `/automates/${currentAutomatonId}/` : '/automates/';
+            const method = currentAutomatonId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur de sauvegarde');
+                return response.json();
+            })
+            .then(result => {
+                document.getElementById('automaton-modal').style.display = 'none';
+                fetchAutomata();
+                showNotification(`Automate ${method === 'POST' ? 'créé' : 'modifié'} avec succès`, 'success');
+            })
+            .catch(error => {
+                console.error('Erreur lors de la sauvegarde:', error);
+                showNotification('Erreur lors de la sauvegarde: ' + error.message, 'error');
+            });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function handleAutomatonOperation(operation) {
+            if (!currentAutomatonId) {
+                showNotification('Veuillez sélectionner un automate', 'error');
+                return;
+            }
+            
+            let url = '';
+            let resultId = '';
+            
+            switch(operation) {
+                case 'determinize':
+                    url = `/automates/${currentAutomatonId}/determiniser/`;
+                    resultId = 'single-op-result';
+                    break;
+                case 'minimize':
+                    url = `/automates/${currentAutomatonId}/minimiser/`;
+                    resultId = 'single-op-result';
+                    break;
+                case 'complete':
+                    url = `/automates/${currentAutomatonId}/completer/`;
+                    resultId = 'single-op-result';
+                    break;
+                case 'complement':
+                    url = `/automates/${currentAutomatonId}/complement/`;
+                    resultId = 'single-op-result';
+                    break;
+                case 'langage':
+                    url = `/automates/${currentAutomatonId}/langage/`;
+                    resultId = 'lang-result';
+                    break;
+                case 'table':
+                    url = `/automates/${currentAutomatonId}/table_transition/`;
+                    resultId = 'table-result';
+                    break;
+            }
+            
+            if (url) {
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Erreur lors de l'opération ${operation}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (operation === 'table') {
+                            const table = document.createElement('table');
+                            table.innerHTML = `
+                                <tr><th>Source</th><th>Symbole</th><th>Destination</th></tr>
+                                ${data.table.map(t => `<tr><td>${t.source}</td><td>${t.symbole}</td><td>${t.destination}</td></tr>`).join('')}
+                            `;
+                            document.getElementById(resultId).innerHTML = '';
+                            document.getElementById(resultId).appendChild(table);
+                        } else if (operation === 'langage') {
+                            document.getElementById(resultId).innerHTML = `Langage: ${data.langage}`;
+                        } else {
+                            showNotification(`Opération "${operation}" effectuée avec succès`, 'success');
+                            fetchAutomata();
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Erreur lors de l'opération ${operation}:`, error);
+                        showNotification(`Erreur lors de l'opération ${operation}: ${error.message}`, 'error');
+                    });
+            }
+        }
+        function openTable() {
+    document.getElementById('overlay').style.display = 'block';
+    document.getElementById('table-result').style.display = 'block';
+  }
+
+  function closeTable() {
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('table-result').style.display = 'none';
+  }
+   // Détecter clic sur le fond flou
+  function handleOverlayClick(event) {
+    if (event.target.id === 'overlay') {
+      closeTable();
+    }
+  }//gère la table de transition
+        function testWord() {
+            const word = document.getElementById('test-word').value;
+            if (!currentAutomatonId || !word) {
+                showNotification('Veuillez sélectionner un automate et entrer un mot', 'error');
+                return;
+            }
+            
+            fetch(`/automates/${currentAutomatonId}/tester_mot/`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ mot: word })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur lors du test du mot');
+                return response.json();
+            })
+            .then(data => {
+                const resultDiv = document.getElementById('test-word-result');
+                resultDiv.innerHTML = data.accepte ? 
+                    `<div class="alert alert-success">
+                        <div class="alert-icon">✅</div>
+                        <div>Le mot "${word}" est accepté par l'automate</div>
+                    </div>` :
+                    `<div class="alert alert-error">
+                        <div class="alert-icon">❌</div>
+                        <div>Le mot "${word}" n'est pas accepté par l'automate</div>
+                    </div>`;
+            })
+            .catch(error => {
+                console.error('Erreur lors du test du mot:', error);
+                showNotification('Erreur lors du test du mot: ' + error.message, 'error');
+            });
+        }
+
+        function checkProperties() {
+            const stateId = document.getElementById('prop-state-select').value;
+            if (!currentAutomatonId || !stateId) {
+                showNotification('Veuillez sélectionner un automate et un état', 'error');
+                return;
+            }
+            
+            fetch(`/automates/${currentAutomatonId}/etats/${stateId}/proprietes/`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur lors de la vérification des propriétés');
+                    return response.json();
+                })
+                .then(data => {
+                    const stateName = document.querySelector(`#prop-state-select option[value="${stateId}"]`).textContent;
+                    const properties = [];
+                    if (data.accessible) properties.push('accessible');
+                    if (data.coaccessible) properties.push('co-accessible');
+                    if (data.utile) properties.push('utile');
+                    
+                    const resultText = properties.length > 0 ? 
+                        `État ${stateName} est: ${properties.join(', ')}` :
+                        `État ${stateName} n'a aucune propriété`;
+                    
+                    document.getElementById('props-result').textContent = resultText;
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la vérification des propriétés:', error);
+                    showNotification('Erreur lors de la vérification des propriétés: ' + error.message, 'error');
+                });
+        }
+
+        function computeEpsilon() {
+            const stateId = document.getElementById('eps-state-select').value;
+            if (!currentAutomatonId || !stateId) {
+                showNotification('Veuillez sélectionner un automate et un état', 'error');
+                return;
+            }
+            
+            fetch(`/automates/${currentAutomatonId}/etats/${stateId}/epsilon_fermeture/`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur lors du calcul de ε-fermeture');
+                    return response.json();
+                })
+                .then(data => {
+                    const stateName = document.querySelector(`#eps-state-select option[value="${stateId}"]`).textContent;
+                    const closureNames = data.fermeture.map(id => {
+                        const option = document.querySelector(`#eps-state-select option[value="${id}"]`);
+                        return option ? option.textContent : `État ${id}`;
+                    });
+                    
+                    document.getElementById('eps-result').textContent = 
+                        `ε-fermeture de ${stateName}: ${closureNames.join(', ') || 'vide'}`;
+                })
+                .catch(error => {
+                    console.error('Erreur lors du calcul de ε-fermeture:', error);
+                    showNotification('Erreur lors du calcul de ε-fermeture: ' + error.message, 'error');
+                });
+        }
+
+        function buildFromRegex() {
+            const expression = document.getElementById('regex-input').value;
+            const method = document.getElementById('regex-method').value;
+            if (!expression) {
+                showNotification('Veuillez entrer une expression régulière', 'error');
+                return;
+            }
+            
+            fetch('/expressions/construire/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ expression, methode: method })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur lors de la construction de l\'automate');
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('regex-result').innerHTML = `
+                    <div class="alert alert-success">
+                        <div class="alert-icon">✅</div>
+                        <div>Automate créé: ${data.nom}</div>
+                    </div>
+                `;
+                fetchAutomata();
+                showNotification('Automate créé à partir de l\'expression', 'success');
+            })
+            .catch(error => {
+                console.error('Erreur lors de la construction de l\'automate:', error);
+                showNotification('Erreur lors de la construction de l\'automate: ' + error.message, 'error');
+            });
+        }
+
+        function solveEquations() {
+        const input = document.getElementById('equation-input').value;
+        const resultDiv = document.getElementById('equation-result');
+        resultDiv.className = 'equation-result';
+        resultDiv.textContent = 'Chargement...';
+
+        fetch('/resoudre_equations_regex/', {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ texte: input })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+            resultDiv.classList.add('error');
+            resultDiv.textContent = `Erreur : ${data.error}`;
+            } else {
+            const lines = Object.entries(data.resultat).map(
+                ([variable, expression]) => `${variable} = ${expression}`
+            );
+            resultDiv.textContent = lines.join('\n');
+            }
+        })
+        .catch(error => {
+            resultDiv.classList.add('error');
+            resultDiv.textContent = 'Erreur de requête : ' + error.message;
+        });
+        }
+
+        function getCookie(name) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [k, v] = cookie.trim().split('=');
+            if (k === name) return decodeURIComponent(v);
+        }
+        return '';
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+
+</body>
+</html>

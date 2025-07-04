@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résoluteur Arden</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+        th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; background: #007BFF; color: #fff; }
+        .btn-danger { background: #DC3545; }
+        .result { margin-top: 1rem; padding: 1rem; background: #f4f4f4; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Résoluteur de système d'équations (lemme d'Arden)</h1>
+    <form id="arden-form">
+        <table id="equations-table">
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Self (A<sub>i</sub>)</th>
+                    <th>Rest (A<sub>ij</sub> sous forme JSON)</th>
+                    <th>Constante (B<sub>i</sub>)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="text" name="var" required placeholder="X"></td>
+                    <td><input type="text" name="self" placeholder="a+b"></td>
+                    <td><input type="text" name="rest" placeholder="{'Y':'c'}"></td>
+                    <td><input type="text" name="const" placeholder="d"></td>
+                    <td><button type="button" class="btn btn-danger remove-row">Supprimer</button></td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="button" id="add-row" class="btn">Ajouter une variable</button>
+        <div style="margin:1rem 0;">
+            <label for="start-var">Variable de départ: </label>
+            <input type="text" id="start-var" required placeholder="X">
+        </div>
+        <button type="submit" class="btn">Résoudre</button>
+    </form>
+    <div id="result" class="result" style="display:none;"></div>
+
+    <script>
+        document.getElementById('add-row').addEventListener('click', () => {
+            const tbody = document.querySelector('#equations-table tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" name="var" required></td>
+                <td><input type="text" name="self"></td>
+                <td><input type="text" name="rest"></td>
+                <td><input type="text" name="const"></td>
+                <td><button type="button" class="btn btn-danger remove-row">Supprimer</button></td>
+            `;
+            tbody.appendChild(newRow);
+        });
+
+        document.querySelector('#equations-table').addEventListener('click', (e) => {
+            if (e.target.matches('.remove-row')) {
+                const row = e.target.closest('tr');
+                row.parentNode.removeChild(row);
+            }
+        });
+
+        document.getElementById('arden-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const rows = document.querySelectorAll('#equations-table tbody tr');
+            const equations = {};
+            for (const row of rows) {
+                const varName = row.querySelector('input[name="var"]').value.trim();
+                const selfCoeff = row.querySelector('input[name="self"]').value.trim();
+                const restText = row.querySelector('input[name="rest"]').value.trim();
+                const constTerm = row.querySelector('input[name="const"]').value.trim();
+                let restObj = {};
+                if (restText) {
+                    try {
+                        restObj = JSON.parse(restText.replace(/'/g, '"'));
+                    } catch (err) {
+                        alert(`REST invalide pour ${varName}`);
+                        return;
+                    }
+                }
+                equations[varName] = { self: selfCoeff, rest: restObj, const: constTerm };
+            }
+            const startVar = document.getElementById('start-var').value.trim();
+            try {
+                const resp = await fetch('/solve_arden/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ equations, start_var: startVar })
+                });
+                const data = await resp.json();
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').textContent = `Langage reconnu: ${data.solution}`;
+            } catch (err) {
+                alert('Erreur lors de la requête : ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

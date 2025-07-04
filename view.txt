@@ -1,0 +1,36 @@
+def parse_equation_text(text):
+    """Transforme un texte brut en dictionnaire {var: expression}"""
+    lines = text.strip().splitlines()
+    equations = {}
+    for line in lines:
+        if '=' in line:
+            left, right = line.split('=', 1)
+            var = left.strip()
+            expr = right.strip()
+            equations[var] = expr
+    return equations
+
+@csrf_exempt
+def resoudre_equations_regex(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        # Mode 1 : format dictionnaire
+        if 'equations' in data and isinstance(data['equations'], dict):
+            systeme = data['equations']
+
+        # Mode 2 : format texte brut
+        elif 'texte' in data and isinstance(data['texte'], str):
+            systeme = parse_equation_text(data['texte'])
+
+        else:
+            return JsonResponse({'error': 'Format invalide. Clé "equations" ou "texte" attendue.'}, status=400)
+
+        solution = app.eliminate_and_simplify(systeme)
+        return JsonResponse({'resultat': solution}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

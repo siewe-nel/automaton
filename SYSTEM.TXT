@@ -1,0 +1,210 @@
+import re
+from copy import deepcopy
+
+def clean_expr(expr):
+    """Nettoie une expression régulière"""
+    if not expr or expr == '':
+        return 'ε'
+    
+    # Supprime les espaces
+    expr = expr.replace(' ', '')
+    
+    # Nettoie les + multiples et en début/fin
+    expr = re.sub(r'\++', '+', expr)
+    expr = expr.strip('+')
+    
+    # Gère ε
+    if expr == 'ε' or expr == '':
+        return 'ε'
+    
+    return expr
+
+def parse_terms(expr):
+    """Sépare une expression en termes"""
+    if not expr or expr == 'ε':
+        return ['ε']
+    
+    terms = []
+    for term in expr.split('+'):
+        term = term.strip()
+        if term and term != '':
+            terms.append(term)
+    
+    return terms if terms else ['ε']
+
+def find_var_coefficient(expr, var):
+    """Trouve le coefficient de var dans expr"""
+    if not expr or expr == 'ε':
+        return '', 'ε'
+    
+    terms = parse_terms(expr)
+    coefficients = []
+    independent = []
+    
+    # Pattern pour détecter la variable
+    var_pattern = rf'{re.escape(var)}(?![0-9])'  # Évite X1 dans X10
+    
+    for term in terms:
+        if re.search(var_pattern, term):
+            # Extrait le coefficient (ce qui précède la variable)
+            coeff = re.sub(var_pattern, '', term)
+            if coeff == '':
+                coeff = 'ε'  # Coefficient unitaire
+            coefficients.append(coeff)
+        else:
+            independent.append(term)
+    
+    coeff_str = '+'.join(coefficients) if coefficients else ''
+    indep_str = '+'.join(independent) if independent else 'ε'
+    
+    return clean_expr(coeff_str), clean_expr(indep_str)
+
+def apply_arden(var, expr):
+    """Applique le lemme d'Arden : X = aX + b → X = a*b"""
+    coeff, indep = find_var_coefficient(expr, var)
+    
+    print(f"  Arden pour {var}: coeff='{coeff}', indep='{indep}'")
+    
+    if not coeff or coeff == 'ε':
+        # Pas de récursion, retourne l'expression nettoyée
+        result = clean_expr(expr)
+        print(f"  → Pas de récursion: {result}")
+        return result
+    
+    # X = aX + b → X = a*b
+    if indep == 'ε':
+        if coeff == 'ε':
+            result = 'ε'
+        else:
+            result = f"({coeff})*"
+    else:
+        if coeff == 'ε':
+            result = indep
+        else:
+            result = f"({coeff})*({indep})"
+    
+    print(f"  → Lemme d'Arden appliqué: {result}")
+    return result
+
+def substitute_var(expr, var, replacement):
+    """Substitue une variable par son remplacement dans une expression"""
+    if not expr or expr == 'ε':
+        return 'ε'
+    
+    # Pattern pour éviter les substitutions partielles (X1 dans X10)
+    var_pattern = rf'{re.escape(var)}(?![0-9])'
+    
+    # Ajoute des parenthèses au remplacement si nécessaire
+    if '+' in replacement and replacement != 'ε':
+        replacement = f"({replacement})"
+    
+    result = re.sub(var_pattern, replacement, expr)
+    return clean_expr(result)
+
+def get_variables(expr):
+    """Retourne l'ensemble des variables Xi dans l'expression"""
+    if not expr:
+        return set()
+    return set(re.findall(r'X\d+', expr))
+
+def solve_regex_system(equations):
+    """Résout complètement le système d'équations régulières"""
+    print("=== DÉBUT DE LA RÉSOLUTION ===")
+    
+    # Copie du système
+    system = deepcopy(equations)
+    solutions = {}
+    
+    print("Système initial:")
+    for var, expr in system.items():
+        print(f"  {var} = {expr}")
+    
+    # Étape 1: Résolution des équations auto-récursives (X = aX + b)
+    print("\n--- Étape 1: Résolution des auto-récursions ---")
+    for var in list(system.keys()):
+        expr = system[var]
+        if var in get_variables(expr):
+            print(f"Résolution de {var} = {expr}")
+            solution = apply_arden(var, expr)
+            solutions[var] = solution
+            system[var] = solution
+            print(f"  Solution: {var} = {solution}")
+    
+    # Étape 2: Substitution progressive
+    print("\n--- Étape 2: Substitutions progressives ---")
+    max_iterations = 50
+    
+    for iteration in range(max_iterations):
+        print(f"\nItération {iteration + 1}:")
+        changed = False
+        
+        # Pour chaque variable
+        for var in system.keys():
+            old_expr = system[var]
+            new_expr = old_expr
+            
+            # Substitue toutes les autres variables dont on connaît la solution
+            for other_var, other_sol in solutions.items():
+                if other_var != var and other_var in get_variables(new_expr):
+                    print(f"  Substitution de {other_var} dans {var}")
+                    print(f"    Avant: {new_expr}")
+                    new_expr = substitute_var(new_expr, other_var, other_sol)
+                    print(f"    Après: {new_expr}")
+            
+            # Si l'expression a changé, applique Arden si nécessaire
+            if new_expr != old_expr:
+                changed = True
+                if var in get_variables(new_expr):
+                    print(f"  Application d'Arden pour {var}")
+                    new_expr = apply_arden(var, new_expr)
+                
+                system[var] = new_expr
+                solutions[var] = new_expr
+                print(f"  Mise à jour: {var} = {new_expr}")
+        
+        # Vérifie si toutes les solutions sont sans variables
+        all_resolved = True
+        for var, sol in solutions.items():
+            if get_variables(sol):
+                all_resolved = False
+                break
+        
+        if all_resolved:
+            print("  → Toutes les variables sont résolues !")
+            break
+        
+        if not changed:
+            print("  → Pas de changement, arrêt des itérations")
+            break
+    
+    # Étape 3: Nettoyage final
+    print("\n--- Étape 3: Nettoyage final ---")
+    for var in solutions:
+        old_sol = solutions[var]
+        # Dernière passe de substitution
+        for other_var, other_sol in solutions.items():
+            if other_var != var:
+                solutions[var] = substitute_var(solutions[var], other_var, other_sol)
+        
+        # Si encore des variables, applique Arden une dernière fois
+        if get_variables(solutions[var]):
+            solutions[var] = apply_arden(var, solutions[var])
+        
+        if solutions[var] != old_sol:
+            print(f"  Nettoyage final de {var}: {old_sol} → {solutions[var]}")
+    
+    return solutions
+
+def eliminate_and_simplify(equations):
+    """Interface principale"""
+    result = solve_regex_system(equations)
+    
+    print("\n=== SOLUTIONS FINALES ===")
+    for var, sol in result.items():
+        has_vars = bool(get_variables(sol))
+        status = "❌ CONTIENT DES VARIABLES" if has_vars else "✅ RÉSOLU"
+        print(f"{var} = {sol} {status}")
+    
+    return result
+
+
